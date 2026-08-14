@@ -53,26 +53,36 @@ $nodeExe = Find-NodeExe
 
 if (-not $nodeExe) {
     Write-Host "[1/4] 未检测到 Node.js, 尝试自动安装..." -ForegroundColor Yellow
-    # 优先 winget (Win10 1709+ 自带)
+    # 优先 winget (Win10 1709+ 自带, 自动装 Node.js LTS)
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if ($winget) {
-        Write-Host "      使用 winget 安装 Node.js LTS (可能需要几分钟, 请耐心等待)..." -ForegroundColor Yellow
+        Write-Host "      使用 winget 自动安装 Node.js LTS (需要几分钟, 请耐心等待)..." -ForegroundColor Yellow
+        Write-Host "      如果弹出用户账户控制 (UAC) 窗口, 请点击'是'允许安装" -ForegroundColor Yellow
         try {
-            winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements | Out-Null
+            $wingetOut = winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "      winget 安装命令已执行完成" -ForegroundColor Green
+            } else {
+                Write-Host "      winget 返回代码: $LASTEXITCODE" -ForegroundColor Yellow
+                Write-Host "      $($wingetOut | Select-Object -Last 3)" -ForegroundColor Yellow
+            }
             Start-Sleep -Seconds 3
         } catch {
             Write-Host "      winget 安装失败: $_" -ForegroundColor Red
         }
     }
-    # 再次检测
+    # 再次检测 (winget 装完 PATH 未刷新, 但 candidates 会检查常见安装位置)
     $nodeExe = Find-NodeExe
     if (-not $nodeExe) {
         Write-Host ""
         Write-Host "[ERROR] 未能自动安装 Node.js。" -ForegroundColor Red
         Write-Host "       请手动安装 Node.js 后重新运行本脚本:" -ForegroundColor Red
         Write-Host "       1. 用浏览器打开 https://nodejs.org 下载 LTS 版" -ForegroundColor Yellow
-        Write-Host "       2. 安装时一路点 Next 即可" -ForegroundColor Yellow
+        Write-Host "       2. 安装时一路点 Next 即可 (建议保持默认选项)" -ForegroundColor Yellow
         Write-Host "       3. 安装完成后重新双击 install.bat" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "       需要的话, 现在帮你打开下载页面 (10秒后自动打开)..." -ForegroundColor Cyan
+        Start-Process "https://nodejs.org"
         exit 1
     }
     Write-Host "      Node.js 安装成功: $nodeExe" -ForegroundColor Green
@@ -83,6 +93,16 @@ if (-not $nodeExe) {
 # ---------------------------------------------------------------
 # 2. 安装 dsh (DeepSeek Harness CLI)
 # ---------------------------------------------------------------
+# 如果用户正运行着 dsh (端口 3080 被占用), 先提示, 避免 npm 更新时文件被锁
+$portCheck = Get-NetTCPConnection -LocalPort 3080 -State Listen -ErrorAction SilentlyContinue
+if ($portCheck) {
+    Write-Host "[2/4] 检测到 DeepSeek Harness 正在运行 (端口 3080)..." -ForegroundColor Yellow
+    Write-Host "      请先关闭正在运行的 DeepSeek Harness 窗口" -ForegroundColor Yellow
+    Write-Host "      或双击桌面 'Stop DeepSeek Harness' 停止后, 再重新运行 install.bat" -ForegroundColor Yellow
+    Write-Host "      (已运行的实例会锁定程序文件, 导致安装失败)" -ForegroundColor Yellow
+    exit 1
+}
+
 Write-Host "[2/4] 正在安装 DeepSeek Harness (dsh)..." -ForegroundColor Cyan
 $nodeDir = Split-Path -Parent $nodeExe
 $npmCmd = Join-Path $nodeDir "npm.cmd"
