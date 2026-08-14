@@ -3,32 +3,36 @@ chcp 65001 >nul
 title DeepSeek Harness Installer
 echo.
 echo ============================================
-echo   DeepSeek Harness - 桌面版一键安装
+echo   DeepSeek Harness - Desktop Installer
 echo ============================================
 echo.
 
-REM 找到 PowerShell 并运行安装脚本
+REM Locate PowerShell
 where powershell >nul 2>nul
 if errorlevel 1 (
-  echo [ERROR] PowerShell not found. Windows 10/11 required.
+  echo [ERROR] PowerShell not found. Windows 10/11 is required.
+  echo.
   pause
   exit /b 1
 )
 
+REM Run the installer script (all output is handled there)
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
 set EXITCODE=%ERRORLEVEL%
 
 echo.
 if "%EXITCODE%"=="0" (
   echo ============================================
-  echo   安装完成! 桌面上已出现两个快捷方式:
-  echo     "DeepSeek Harness"        - 启动
-  echo     "Stop DeepSeek Harness"   - 停止
-  echo   双击 "DeepSeek Harness" 即可开始使用。
+  echo   INSTALL COMPLETE
+  echo   Two shortcuts have been created on your desktop:
+  echo     "DeepSeek Harness"       - Start
+  echo     "Stop DeepSeek Harness"  - Stop
+  echo   Double-click "DeepSeek Harness" to begin.
   echo ============================================
 ) else (
   echo ============================================
-  echo   安装未完成, 请根据上方提示操作后重试。
+  echo   INSTALL DID NOT COMPLETE
+  echo   Check the messages above, then run again.
   echo ============================================
 )
 echo.

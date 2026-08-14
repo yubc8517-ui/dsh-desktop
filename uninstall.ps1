@@ -1,6 +1,13 @@
 ﻿# DeepSeek Harness - 桌面版卸载脚本
 $ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.Encoding]::UTF8
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
+trap {
+    Write-Host ""
+    Write-Host "[ERROR] 卸载过程中出现问题: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan

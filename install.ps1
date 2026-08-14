@@ -5,6 +5,17 @@
 
 $ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.Encoding]::UTF8
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
+# 全局兜底: 任何未捕获异常都输出信息并返回失败码, 绝不静默闪退
+trap {
+    Write-Host ""
+    Write-Host "[ERROR] 安装过程中出现问题:" -ForegroundColor Red
+    Write-Host "       $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "       请截图本窗口内容反馈给作者, 或重试安装。" -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
