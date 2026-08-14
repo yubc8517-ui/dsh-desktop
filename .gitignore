@@ -1,0 +1,5 @@
+# 忽略运行时生成的文件和日志
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
