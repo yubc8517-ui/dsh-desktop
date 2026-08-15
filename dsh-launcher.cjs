@@ -114,12 +114,75 @@ function findChromium() {
 }
 
 /**
- * 打开 UI: 优先用 Chromium 的 --app 模式打开独立应用窗口
- * (无地址栏、无标签页, 类似桌面应用); 找不到则回退默认浏览器。
+ * 递归收集目录下的 .lnk 快捷方式 (仅浅层, 避免扫描 Edge 大数据目录)。
+ */
+function walkLnk(root) {
+  const out = [];
+  const stack = [root];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (_) {
+      continue;
+    }
+    for (const en of entries) {
+      const full = path.join(dir, en.name);
+      if (en.isDirectory()) {
+        if (stack.length < 32) stack.push(full);
+      } else if (en.name.toLowerCase().endsWith(".lnk")) {
+        out.push(full);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 检测已安装的 Edge PWA 快捷方式: 已安装应用由 msedge_proxy.exe 启动,
+ * 其 .lnk 参数里带 --app-url=<我们的 URL>。读取 .lnk 的 UTF-16 字符串即可
+ * 匹配, 无需解析二进制格式。
+ * @returns 匹配的 .lnk 绝对路径, 未安装则 null。
+ */
+function findInstalledAppShortcut() {
+  const urlNeedles = [URL.toLowerCase(), URL.replace("127.0.0.1", "localhost").toLowerCase()];
+  const roots = [
+    path.join(process.env.APPDATA || "", "Microsoft", "Windows", "Start Menu", "Programs"),
+    path.join(process.env.USERPROFILE || "", "Desktop"),
+  ];
+  for (const root of roots) {
+    if (!fs.existsSync(root)) continue;
+    for (const f of walkLnk(root)) {
+      try {
+        const lower = fs.readFileSync(f).toString("utf16le").toLowerCase();
+        if (lower.includes("msedge") && urlNeedles.some((n) => lower.includes(n))) return f;
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * 打开 UI: 若检测到已安装的 PWA 快捷方式, 优先启动它 (任务栏显示鲸鱼图标);
+ * 否则用 Chromium 的 --app 模式打开独立应用窗口 (无地址栏、无标签页);
+ * 找不到浏览器则回退默认浏览器。
  */
 function openBrowser() {
   if (NO_BROWSER) {
     log(`[launcher] skip browser open (DSH_NO_BROWSER=1)`);
+    return;
+  }
+  const appShortcut = findInstalledAppShortcut();
+  if (appShortcut) {
+    spawn("cmd.exe", ["/c", "start", "", `"${appShortcut}"`], {
+      stdio: "ignore",
+      detached: true,
+      windowsHide: true,
+    }).unref();
+    log(`[launcher] opening installed PWA (${appShortcut})`);
     return;
   }
   const chromium = findChromium();
